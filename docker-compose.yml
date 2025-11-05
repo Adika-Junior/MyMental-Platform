@@ -1,0 +1,99 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: mymental_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend
+    environment:
+      DB_NAME: mymental_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: mymental_chat
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      DEBUG: 'True'
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+    ports:
+      - "8000:8000"
+
+  celery_worker:
+    build: ./backend
+    command: celery -A mymental_backend worker --loglevel=info
+    environment:
+      DB_NAME: mymental_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: mymental_chat
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+      - backend
+
+  celery_beat:
+    build: ./backend
+    command: celery -A mymental_backend beat --loglevel=info
+    environment:
+      DB_NAME: mymental_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB_NAME: mymental_chat
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+      - backend
+
+  frontend:
+    build: ./frontend
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  mongodata:
+
+

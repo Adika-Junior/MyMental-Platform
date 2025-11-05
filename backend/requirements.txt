@@ -1,0 +1,36 @@
+Django==5.2.7
+djangorestframework==3.16.1
+djangorestframework-simplejwt==5.3.1
+psycopg2-binary==2.9.11
+pymongo==4.10.1
+django-mongodb-backend==5.2.*
+django-cors-headers==4.9.0
+python-decouple==3.8
+django-environ==0.12.0
+channels==4.3.1
+channels-redis==4.3.0
+langchain==0.3.7
+langchain-core==0.3.18
+langchain-community==0.3.7
+ollama==0.6.0
+pydantic==2.12.3
+httpx==0.28.1
+redis==7.0.0
+celery==5.4.0
+graphene-django==3.2.2
+django-graphql-jwt==0.4.0
+coverage==7.5.3
+django-redis==5.4.0
+
+# Observability
+sentry-sdk==2.17.0
+python-json-logger==2.0.7
+
+# Testing
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+locust==2.17.0
+
+# Monitoring
+psutil==5.9.6
