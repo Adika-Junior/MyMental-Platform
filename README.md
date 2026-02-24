@@ -43,6 +43,15 @@ A comprehensive mental health platform featuring an AI-powered chatbot, emotiona
 - **Ollama** for local LLM inference (Llama 3.2)
 - **Custom crisis detection** algorithms
 
+## 🔍 Decision-Making Logic (Overview)
+
+The chatbot’s core decision-making flow is implemented in the `backend/chatbot` app:
+
+- Incoming messages are analyzed by a **keyword + severity crisis detector** (`CrisisKeyword`, `CrisisAlert`, and `MentalHealthChatbot.detect_crisis`).
+- User mood history is modeled via **emotional check-ins** (`EmotionalCheckIn`), using simple averages and negative‑mood ratios over a time window.
+- These signals are combined into a **three-level risk score** (low, moderate, high) with clear, rule-based thresholds and human‑readable rationales.
+- The frontend chat page (`frontend/app/chat/page.tsx`) displays both the bot reply and a compact summary of the current risk assessment to the user.
+
 ## 📁 Project Structure
 
 ```

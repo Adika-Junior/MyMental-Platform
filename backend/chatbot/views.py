@@ -122,13 +122,21 @@ def send_message(request):
             'emergency_resources': [
                 'National Suicide Prevention Lifeline: 988',
                 'Crisis Text Line: Text HOME to 741741'
-            ]
+            ],
+            'risk_level': crisis_detection.get('risk_level', 3),
+            'risk_label': crisis_detection.get('risk_label', 'high'),
+            'rationale': crisis_detection.get('rationale'),
+            'mood_profile': crisis_detection.get('mood_profile'),
         })
     
     return Response({
         'bot_response': bot_response,
         'crisis_detected': False,
-        'session_id': session_id
+        'session_id': session_id,
+        'risk_level': crisis_detection.get('risk_level', 1),
+        'risk_label': crisis_detection.get('risk_label', 'low'),
+        'rationale': crisis_detection.get('rationale'),
+        'mood_profile': crisis_detection.get('mood_profile'),
     })
 
 
@@ -529,7 +537,10 @@ def anon_send_message(request):
     return Response({
         'bot_response': bot_response,
         'crisis_detected': bool(crisis_detection.get('is_crisis')),
-        'session_id': session_id
+        'session_id': session_id,
+        'risk_level': crisis_detection.get('risk_level'),
+        'risk_label': crisis_detection.get('risk_label'),
+        'rationale': crisis_detection.get('rationale'),
     })
 
 

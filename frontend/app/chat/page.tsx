@@ -19,6 +19,9 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [wsEnabled, setWsEnabled] = useState(true);
   const [theme, setTheme] = useState<string>(() => (typeof window !== 'undefined' ? localStorage.getItem('chat_theme') || 'calm' : 'calm'));
+  const [riskLevel, setRiskLevel] = useState<number | null>(null);
+  const [riskLabel, setRiskLabel] = useState<string | null>(null);
+  const [supportNote, setSupportNote] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -240,6 +243,22 @@ export default function ChatPage() {
 
       setMessages((prev) => [...prev, botMessage]);
 
+      if (typeof data.risk_level === 'number') {
+        setRiskLevel(data.risk_level);
+      } else {
+        setRiskLevel(null);
+      }
+      if (typeof data.risk_label === 'string') {
+        setRiskLabel(data.risk_label);
+      } else {
+        setRiskLabel(null);
+      }
+      if (typeof data.rationale === 'string') {
+        setSupportNote(data.rationale);
+      } else {
+        setSupportNote(null);
+      }
+
       if (data.crisis_detected) {
         alert('Your message has been flagged for immediate attention. Please contact emergency services if this is an emergency.');
       }
@@ -388,6 +407,47 @@ export default function ChatPage() {
               </select>
             </div>
           </div>
+
+          {/* Risk / support banner */}
+          {riskLevel && (
+            <div
+              style={{
+                padding: '0.75rem 1.25rem',
+                borderBottom: '1px solid #e5e7eb',
+                backgroundColor:
+                  riskLevel === 3 ? '#fee2e2' :
+                  riskLevel === 2 ? '#fef3c7' :
+                  '#ecfdf5',
+              }}
+            >
+              <p
+                style={{
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: supportNote ? 4 : 0,
+                  color:
+                    riskLevel === 3 ? '#b91c1c' :
+                    riskLevel === 2 ? '#92400e' :
+                    '#047857',
+                }}
+              >
+                {riskLevel === 3 && 'High risk pattern detected – a counselor may review this conversation.'}
+                {riskLevel === 2 && 'Moderate risk pattern detected – we are keeping an extra eye on your wellbeing.'}
+                {riskLevel === 1 && 'Low risk – providing general emotional support.'}
+              </p>
+              {supportNote && (
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#4b5563',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {supportNote}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Messages */}
           <div style={{

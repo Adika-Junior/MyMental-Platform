@@ -50,3 +50,9 @@ yarn-error.log*
 # Database
 *.db
 
+# Markdown
+*.md
+!README.md
+
+*.pdf
+

@@ -8,9 +8,10 @@ except ImportError:
     from langchain.llms import Ollama
 
 from django.conf import settings
-from .models import CrisisKeyword, CrisisAlert
+from .models import CrisisKeyword, CrisisAlert, EmotionalCheckIn
 from django.utils import timezone
 import re
+from datetime import timedelta
 
 
 class MentalHealthChatbot:
@@ -106,6 +107,7 @@ Provide a supportive response:"""
         matched_keywords = []
         max_severity = 0
         should_escalate = False
+        mood_profile = None
         
         # Load active crisis keywords from database
         active_keywords = CrisisKeyword.objects.filter(is_active=True).order_by('-severity')
@@ -125,9 +127,54 @@ Provide a supportive response:"""
                 if keyword_obj.auto_escalate:
                     should_escalate = True
         
-        # Determine if this is a crisis (severity >= 7)
+        # Optionally incorporate longitudinal mood profile (last 30 days)
+        if user is not None:
+            mood_profile = self._get_longitudinal_mood(user_id=user.id, window_days=30)
+
+        # Determine if this is a crisis (severity >= 7 or auto-escalate)
         is_crisis = max_severity >= 7 or should_escalate
         
+        # Derive risk level (1 = low, 2 = moderate, 3 = high)
+        negative_ratio = None
+        if mood_profile and mood_profile.get('has_data'):
+            negative_ratio = mood_profile.get('negative_ratio')
+
+        if is_crisis:
+            risk_level = 3
+        elif max_severity >= 5 or (negative_ratio is not None and negative_ratio >= 0.6):
+            risk_level = 2
+        else:
+            risk_level = 1
+
+        risk_label = {1: 'low', 2: 'moderate', 3: 'high'}[risk_level]
+
+        # Action recommendation aligned with risk level
+        if risk_level == 3:
+            action = 'immediate_escalation'
+        elif risk_level == 2:
+            action = 'monitor'
+        else:
+            action = 'none'
+
+        # Build an explainable rationale string
+        rationale_parts = []
+        if matched_keywords:
+            keyword_list = ', '.join([kw['keyword'] for kw in matched_keywords])
+            rationale_parts.append(f"Matched crisis keywords in message: {keyword_list}.")
+        if mood_profile and mood_profile.get('has_data'):
+            avg_mood = mood_profile.get('average_mood')
+            neg_ratio = mood_profile.get('negative_ratio')
+            rationale_parts.append(
+                f"Recent emotional check-ins show average mood {avg_mood:.2f} on a 1–5 scale "
+                f"with approximately {neg_ratio:.0%} of check-ins in the negative range."
+            )
+        if risk_level == 3:
+            rationale_parts.append("Combined indicators place this interaction in a HIGH risk band requiring immediate attention.")
+        elif risk_level == 2:
+            rationale_parts.append("Signals suggest MODERATE risk; additional monitoring and potential clinician review are recommended.")
+        else:
+            rationale_parts.append("No elevated risk indicators detected; proceeding with standard supportive interaction.")
+
         # Create alert if crisis detected and user provided
         alert = None
         if is_crisis and user:
@@ -157,8 +204,12 @@ Provide a supportive response:"""
             'is_crisis': is_crisis,
             'severity': max_severity,
             'matched_keywords': [kw['keyword'] for kw in matched_keywords],
-            'action': 'immediate_escalation' if is_crisis else ('monitor' if max_severity >= 4 else 'none'),
-            'alert_id': alert.id if alert else None
+            'alert_id': alert.id if alert else None,
+            'risk_level': risk_level,
+            'risk_label': risk_label,
+            'action': action,
+            'mood_profile': mood_profile,
+            'rationale': " ".join(rationale_parts).strip(),
         }
     
     def _create_crisis_alert(self, user, message, severity, matched_keywords, conversation=None):
@@ -183,6 +234,44 @@ Provide a supportive response:"""
             matched_keywords=matched_keywords,
             status='pending'
         )
+
+    def _get_longitudinal_mood(self, user_id, window_days=30):
+        """
+        Compute a simple longitudinal mood profile from recent check-ins.
+
+        The model aggregates emotional check-ins over a sliding time window
+        and derives:
+        - average_mood: mean of 1–5 Likert mood ratings
+        - negative_ratio: fraction of check-ins in the negative range (1–2)
+        - count: number of check-ins considered
+        """
+        now = timezone.now()
+        window_start = now - timedelta(days=window_days)
+        qs = EmotionalCheckIn.objects.filter(
+            user_id=user_id,
+            created_at__gte=window_start
+        ).order_by('-created_at')
+
+        count = qs.count()
+        if count == 0:
+            return {
+                'has_data': False,
+                'average_mood': None,
+                'negative_ratio': None,
+                'count': 0,
+            }
+
+        moods = list(qs.values_list('mood', flat=True))
+        average_mood = sum(moods) / float(count)
+        negative_count = sum(1 for m in moods if m <= 2)
+        negative_ratio = negative_count / float(count)
+
+        return {
+            'has_data': True,
+            'average_mood': average_mood,
+            'negative_ratio': negative_ratio,
+            'count': count,
+        }
     
     def summarize_conversation(self, messages):
         """
