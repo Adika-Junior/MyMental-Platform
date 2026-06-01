@@ -26,16 +26,13 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auth helpers
-  const getRefreshToken = () => (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
-
   const refreshAccessToken = async (): Promise<string | null> => {
-    const refresh = getRefreshToken();
-    if (!refresh) return null;
     try {
       const res = await fetch('http://localhost:8000/api/users/refresh/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh })
+        credentials: 'include',
+        body: JSON.stringify({})
       });
       if (!res.ok) return null;
       const data = await res.json();

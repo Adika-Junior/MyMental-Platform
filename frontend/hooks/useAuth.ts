@@ -17,27 +17,16 @@ export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
 
-  const getRefreshToken = () => {
-    if (typeof window === 'undefined') return null;
-    // Try cookie first, then localStorage for backward compatibility
-    const cookies = document.cookie.split(';');
-    const refreshCookie = cookies.find(c => c.trim().startsWith('refresh_token='));
-    if (refreshCookie) {
-      return refreshCookie.split('=')[1];
-    }
-    return localStorage.getItem('refreshToken');
-  };
+  // Refresh token is stored in a httpOnly cookie (BFF pattern).
+  // The client must not read it from JavaScript.
 
   const refreshAccessToken = async (): Promise<string | null> => {
-    const refresh = getRefreshToken();
-    if (!refresh) return null;
-    
     try {
       const res = await fetch('http://localhost:8000/api/users/refresh/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // Include cookies
-        body: JSON.stringify({ refresh }),
+        body: JSON.stringify({}), // Cookie is used server-side
       });
       
       if (!res.ok) return null;

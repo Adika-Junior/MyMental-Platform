@@ -17,6 +17,10 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
     # Django provides a unique index on username; add index for email lookups
     email = models.EmailField(blank=True, db_index=True)
+
+    # Canonical identity mapping when using AuthGuard as the identity provider.
+    # AuthGuard's access token `sub` is set to this UUID.
+    authguard_user_id = models.UUIDField(null=True, blank=True, db_index=True)
     
     def __str__(self):
         return f"{self.username} ({self.get_user_type_display()})"

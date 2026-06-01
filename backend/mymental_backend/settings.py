@@ -198,12 +198,37 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
 
-# Django REST Framework
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
+# AuthGuard integration (use AuthGuard as identity provider)
+AUTHGUARD_INTEGRATION_ENABLED = env.bool('AUTHGUARD_INTEGRATION_ENABLED', default=False)
+AUTHGUARD_BASE_URL = env('AUTHGUARD_BASE_URL', default='')
+AUTHGUARD_JWKS_URL = env('AUTHGUARD_JWKS_URL', default='')
+AUTHGUARD_ISSUER = env('AUTHGUARD_ISSUER', default='authguard')
+AUTHGUARD_AUDIENCE = env('AUTHGUARD_AUDIENCE', default='authguard')
+AUTHGUARD_TLS_INSECURE_SKIP_VERIFY = env.bool('AUTHGUARD_TLS_INSECURE_SKIP_VERIFY', default=False)
+AUTHGUARD_CLIENT_TIMEOUT_SECONDS = env.int('AUTHGUARD_CLIENT_TIMEOUT_SECONDS', default=10)
+AUTHGUARD_COOKIE_SECURE = env.bool('AUTHGUARD_COOKIE_SECURE', default=False)
+AUTHGUARD_JWT_CLOCK_SKEW_SECONDS = env.int('AUTHGUARD_JWT_CLOCK_SKEW_SECONDS', default=30)
+AUTHGUARD_JWKS_CACHE_TTL_SECONDS = env.int('AUTHGUARD_JWKS_CACHE_TTL_SECONDS', default=3600)
+
+# Derive JWKS URL from base URL if not explicitly set.
+if AUTHGUARD_INTEGRATION_ENABLED and AUTHGUARD_JWKS_URL == '' and AUTHGUARD_BASE_URL:
+    AUTHGUARD_JWKS_URL = AUTHGUARD_BASE_URL.rstrip('/') + '/.well-known/jwks.json'
+
+# Authentication classes switch based on whether we're using AuthGuard.
+if AUTHGUARD_INTEGRATION_ENABLED:
+    DEFAULT_AUTHENTICATION_CLASSES = [
+        'users.authguard_authentication.AuthGuardJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ]
+else:
+    DEFAULT_AUTHENTICATION_CLASSES = [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-    ],
+    ]
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': DEFAULT_AUTHENTICATION_CLASSES,
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],

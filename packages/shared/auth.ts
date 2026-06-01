@@ -1,4 +1,4 @@
-export type Tokens = { access: string; refresh: string };
+export type Tokens = { access: string };
 
 export function getBaseUrl() {
   // Default to local backend; override via env if needed
@@ -27,22 +27,21 @@ export async function register(username: string, email: string, password: string
   if (!res.ok) throw new Error('Registration failed');
 }
 
-export async function refreshToken(refresh: string): Promise<{ access: string }> {
+async function refreshTokenFromCookie(): Promise<{ access: string }> {
   const res = await fetch(`${getBaseUrl()}/api/users/refresh/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh })
+    credentials: 'include',
+    body: JSON.stringify({})
   });
   if (!res.ok) throw new Error('Refresh failed');
   return res.json();
 }
 
 let accessToken: string | null = null;
-let refreshTokenValue: string | null = null;
 
-export function setTokens(access: string, refresh?: string) {
+export function setTokens(access: string) {
   accessToken = access;
-  if (refresh) refreshTokenValue = refresh;
 }
 
 export function getAccessToken() {
@@ -52,12 +51,13 @@ export function getAccessToken() {
 export async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit = {}) {
   const headers = { ...(init.headers || {}), 'Authorization': `Bearer ${accessToken || ''}` } as Record<string, string>;
   let res = await fetch(input, { ...init, headers });
-  if (res.status === 401 && refreshTokenValue) {
+  if (res.status === 401) {
     try {
-      const data = await refreshToken(refreshTokenValue);
-      accessToken = data.access;
+      const data = await refreshTokenFromCookie();
+      accessToken = data.access || null;
+      if (!accessToken) return res;
       const retryHeaders = { ...(init.headers || {}), 'Authorization': `Bearer ${accessToken}` } as Record<string, string>;
-      res = await fetch(input, { ...init, headers: retryHeaders });
+      res = await fetch(input, { ...init, headers: retryHeaders, credentials: 'include' });
     } catch {}
   }
   return res;
